@@ -29,6 +29,7 @@ if data_source == "Upload CSV":
 elif data_source == "Use path (NLSY97 or /s3/...)":
     path_str = st.sidebar.text_input("Path to CSV", value=str(NLSY97_CSV))
     data_path = Path(path_str)
+    sample_n_path = st.sidebar.number_input("Max rows (memory-safe)", min_value=500, max_value=5000, value=2000, step=500, help="Large NLSY97: use 2000–3000 to avoid OOM.")
     if data_path.exists():
         st.sidebar.success(f"Found: {path_str}")
     else:
@@ -41,7 +42,7 @@ if run_clicked or (data_source == "Synthetic demo (no file)" and "pipeline_resul
             if df_input is not None:
                 result = run_pipeline(df_preloaded=df_input)
             elif data_path and data_path.exists():
-                result = run_pipeline(data_path=data_path, sample_n=5000)
+                result = run_pipeline(data_path=data_path, sample_n=int(sample_n_path))
             else:
                 result = run_pipeline()  # synthetic
             st.session_state["pipeline_result"] = result

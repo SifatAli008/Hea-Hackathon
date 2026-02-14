@@ -15,27 +15,36 @@ def load_longitudinal(
     use_chunks: bool = False,
     chunk_rows: int = 100_000,
     sample_n: Optional[int] = None,
+    max_cols: Optional[int] = 150,
 ) -> pd.DataFrame:
     """
-    Load longitudinal CSV. For very large files, use use_chunks=True or sample_n.
+    Load longitudinal CSV. For very large files we read one chunk only to avoid OOM.
+    max_cols: keep only first N columns to save memory (NLSY97 has thousands).
     """
     path = path or NLSY97_CSV
-    if not Path(path).exists():
+    path = Path(path)
+    if not path.exists():
         raise FileNotFoundError(f"Data not found: {path}. Set HEA_DATA_PATH or pass path.")
 
-    if use_chunks:
-        chunks = []
-        for chunk in pd.read_csv(path, chunksize=chunk_rows, low_memory=False):
-            chunks.append(chunk)
-            if sample_n and sum(len(c) for c in chunks) >= sample_n:
-                break
-        df = pd.concat(chunks, ignore_index=True)
-    else:
-        df = pd.read_csv(path, nrows=sample_n, low_memory=False)
+    # Use chunked read so we never load the whole file (avoids OOM on huge CSVs)
+    n_to_read = sample_n or 5000
+    n_to_read = min(n_to_read, 3000)  # cap for memory safety
+    chunk_size = n_to_read
+
+    df = None
+    for chunk in pd.read_csv(path, chunksize=chunk_size, low_memory=False):
+        df = chunk
+        break  # only first chunk
+
+    if df is None or len(df) == 0:
+        raise ValueError(f"No rows read from {path}")
+
+    # Keep only first max_cols to reduce memory (pipeline will use numeric cols + ID)
+    if max_cols and len(df.columns) > max_cols:
+        df = df.iloc[:, :max_cols].copy()
 
     # Ensure we have a person id column (rename if codebook says so)
-    if id_col not in df.columns and df.columns[0] is not None:
-        # Common NLSY97: first column often person ID
+    if id_col not in df.columns and len(df.columns) > 0:
         df = df.rename(columns={df.columns[0]: id_col})
     return df
 
