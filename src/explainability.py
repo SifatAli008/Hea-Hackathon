@@ -35,40 +35,59 @@ def get_top_contributors(
     return imp.head(top_k)
 
 
+def _base_name(col: str) -> str:
+    """Base variable name without _deviation / _pct_change."""
+    return col.replace("_pct_change", "").replace("_deviation", "").replace("_", " ").strip().title()
+
+
 def human_readable_changes(
     row: pd.Series,
     deviation_cols: Optional[List[str]] = None,
     pct_cols: Optional[List[str]] = None,
 ) -> List[str]:
     """
-    Build list of sentences like "Sleep decreased 22%", "Mood score dropped 1.8 points".
-    deviation_cols: columns ending with _deviation or _pct_change.
+    Build list of sentences like "Sleep decreased 22%", "Health Rating: −0.5 (−2.1%)".
+    Deduplicates by variable: one line per variable, combining absolute and % when both exist.
     """
-    out = []
     if deviation_cols is None:
         deviation_cols = [c for c in row.index if "_pct_change" in c or "_deviation" in c]
+    # Group by base name: collect (deviation_val, pct_val) per variable
+    by_name: Dict[str, tuple] = {}
     for c in deviation_cols:
         if c not in row.index or pd.isna(row[c]):
             continue
         val = row[c]
-        name = c.replace("_pct_change", "").replace("_deviation", "").replace("_", " ").title()
+        name = _base_name(c)
+        if name not in by_name:
+            by_name[name] = (None, None)
+        dev, pct = by_name[name]
         if "_pct_change" in c:
-            if val > 0:
-                out.append(f"{name} increased {val:.1f}%")
-            else:
-                out.append(f"{name} decreased {abs(val):.1f}%")
+            by_name[name] = (dev, val)
         else:
-            if val > 0:
-                out.append(f"{name} increased {val:.2f}")
+            by_name[name] = (val, pct)
+    out = []
+    for name, (dev, pct) in by_name.items():
+        if dev is not None and pct is not None:
+            dev_str = f"{dev:+.2f}" if dev != 0 else "0.00"
+            pct_str = f"{pct:+.1f}%" if pct != 0 else "0.0%"
+            out.append(f"{name}: {dev_str} ({pct_str})")
+        elif pct is not None:
+            if pct > 0:
+                out.append(f"{name} increased {pct:.1f}%")
             else:
-                out.append(f"{name} decreased {abs(val):.2f}")
-    return out[:5]  # top 5
+                out.append(f"{name} decreased {abs(pct):.1f}%")
+        elif dev is not None:
+            if dev > 0:
+                out.append(f"{name} increased {dev:.2f}")
+            else:
+                out.append(f"{name} decreased {abs(dev):.2f}")
+    return out[:5]
 
 
-def explanation_text(contributions: List[str], risk_score: float, category: str) -> str:
-    """Single paragraph for user: why flagged + score + category."""
-    lines = [
-        f"Risk score: {risk_score:.0f}/100 ({category}).",
-        "Main changes we observed: " + "; ".join(contributions) if contributions else "No strong deviations from your baseline.",
-    ]
-    return " ".join(lines)
+def explanation_text(contributions: List[str], risk_score: float, category: str, include_score: bool = False) -> str:
+    """Single paragraph for user. If include_score=False (default), only main changes (score shown separately in UI)."""
+    main = "; ".join(contributions) if contributions else "No strong deviations from your baseline."
+    text = "Main changes we observed: " + main
+    if include_score:
+        text = f"Risk score: {risk_score:.0f}/100 ({category}). " + text
+    return text
