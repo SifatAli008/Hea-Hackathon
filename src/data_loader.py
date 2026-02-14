@@ -1,6 +1,7 @@
 """
 Load and align longitudinal data. Handles missing values and noisy self-reports.
 """
+import csv
 import pandas as pd
 import numpy as np
 from pathlib import Path
@@ -9,41 +10,39 @@ from typing import Optional, List
 from .config import NLSY97_CSV, ID_COL, WAVE_COL, TIME_COL
 
 
+def _get_header_first_columns(path: Path, max_cols: int = 80) -> List[str]:
+    """Read first line of CSV to get column names; return first max_cols only (no pandas, minimal memory)."""
+    with open(path, "r", encoding="utf-8", errors="replace", newline="") as f:
+        reader = csv.reader(f)
+        first_row = next(reader)
+    return [c.strip().strip('"') for c in first_row[:max_cols]]
+
+
 def load_longitudinal(
     path: Optional[Path] = None,
     id_col: str = ID_COL,
     use_chunks: bool = False,
     chunk_rows: int = 100_000,
     sample_n: Optional[int] = None,
-    max_cols: Optional[int] = 150,
+    max_cols: Optional[int] = 80,
 ) -> pd.DataFrame:
     """
-    Load longitudinal CSV. For very large files we read one chunk only to avoid OOM.
-    max_cols: keep only first N columns to save memory (NLSY97 has thousands).
+    Load longitudinal CSV. Reads only first max_cols columns to avoid OOM on wide files (e.g. NLSY97).
     """
     path = path or NLSY97_CSV
     path = Path(path)
     if not path.exists():
         raise FileNotFoundError(f"Data not found: {path}. Set HEA_DATA_PATH or pass path.")
 
-    # Use chunked read so we never load the whole file (avoids OOM on huge CSVs)
-    n_to_read = sample_n or 5000
-    n_to_read = min(n_to_read, 3000)  # cap for memory safety
-    chunk_size = n_to_read
+    n_to_read = min(sample_n or 2000, 2500)
+    use_cols = _get_header_first_columns(path, max_cols=max_cols or 80)
 
-    df = None
-    for chunk in pd.read_csv(path, chunksize=chunk_size, low_memory=False):
-        df = chunk
-        break  # only first chunk
+    # Only parse these columns — pandas never touches the rest (avoids OOM)
+    df = pd.read_csv(path, usecols=use_cols, nrows=n_to_read, low_memory=False, encoding="utf-8", on_bad_lines="skip")
 
     if df is None or len(df) == 0:
         raise ValueError(f"No rows read from {path}")
 
-    # Keep only first max_cols to reduce memory (pipeline will use numeric cols + ID)
-    if max_cols and len(df.columns) > max_cols:
-        df = df.iloc[:, :max_cols].copy()
-
-    # Ensure we have a person id column (rename if codebook says so)
     if id_col not in df.columns and len(df.columns) > 0:
         df = df.rename(columns={df.columns[0]: id_col})
     return df
