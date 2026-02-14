@@ -29,7 +29,7 @@ if data_source == "Upload CSV":
 elif data_source == "Use path (NLSY97 or /s3/...)":
     path_str = st.sidebar.text_input("Path to CSV", value=str(NLSY97_CSV))
     data_path = Path(path_str)
-    sample_n_path = st.sidebar.number_input("Max rows (memory-safe)", min_value=500, max_value=3000, value=1500, step=500, help="Large NLSY97: only first 80 cols read. Use 1500–2000 to avoid OOM.")
+    sample_n_path = st.sidebar.number_input("Max rows (memory-safe)", min_value=300, max_value=2000, value=800, step=200, help="Line-by-line read, first 50 cols only. Use 500–800 if OOM.")
     if data_path.exists():
         st.sidebar.success(f"Found: {path_str}")
     else:
