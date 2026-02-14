@@ -40,6 +40,7 @@ Hea/
 │   └── pipeline.py        # End-to-end pipeline
 ├── data/
 │   └── sample_longitudinal.csv   # Small sample (in repo) — demo without NLSY97
+├── HACKATHON_CHECKLIST.md  # Submission checklist vs judging criteria
 └── notebooks/             # Optional exploration
 ```
 
@@ -68,6 +69,22 @@ Use “Synthetic demo (no file)” in the sidebar — runs on small generated da
 4. **Risk category:** Psycho-emotional / Metabolic / Cardiovascular from dominant signals.
 5. **Explainability:** Which features changed and by how much.
 6. **Follow-up:** One supportive, non-diagnostic question (templates by signal type).
+
+## Architecture (high level)
+
+```
+Data (CSV) → Load & align → Per-person baseline → Weak signals (slope, deviation, flags)
+    → No-leakage target (last wave) + features (past only) → Train model (F2-optimized)
+    → Risk score 0–100 + category → Explainability → Empathetic follow-up question
+```
+
+## No data leakage & feature audit
+
+**Features used:** Baseline deviations, % change, z-scores, trend slopes, and declining flags only. No medication, diagnosis, or outcome-revealing variables. Target is defined from last wave only; model is trained on past waves only.
+
+## Fairness
+
+We do not use age, gender, or ethnicity as model inputs. When the dataset includes demographics, a fairness audit (e.g. stratified F2 or error rates by group) can be run; we keep the model simple and avoid demographic-based scoring.
 
 ## Dataset
 
