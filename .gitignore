@@ -1,0 +1,30 @@
+# Data (large / binary)
+*.csv
+*.dat
+*.sas
+*.sdf
+*.cdb
+*.R
+*.NLSY97
+data/*.csv
+data/*.dat
+
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+env/
+*.egg-info/
+.pytest_cache/
+
+# IDE / OS
+.idea/
+.vscode/
+.DS_Store
+Thumbs.db
+
+# Secrets
+.env
+.env.local
+*.pem
