@@ -36,6 +36,10 @@ HEALTH_LIFESTYLE_COLS = [
 # NLSY97 loader uses 6th var as life_event_proxy when n_features=6.
 LIFE_EVENT_COLS = []  # e.g. ["employment_status", "marital_status"] when mapped
 
+# Demographics for fairness stratification only (never used as model inputs).
+# When set and present in data, pipeline computes F2/PR-AUC/ROC-AUC per group to surface bias.
+DEMOGRAPHIC_COLS = []  # e.g. ["gender", "race"] when available in dataset
+
 # Risk score bands
 RISK_LOW = (0, 30)
 RISK_MODERATE = (31, 60)

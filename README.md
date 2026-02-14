@@ -87,6 +87,8 @@ Data (CSV) → Load & align → Per-person baseline → Weak signals (slope, dev
 
 We do not use age, gender, or ethnicity as model inputs. When the dataset includes demographics, a fairness audit (e.g. stratified F2 or error rates by group) can be run; we keep the model simple and avoid demographic-based scoring.
 
+**Could the model become biased?** Not by design — we never feed demographics into the model, so scores and categories are not directly based on age, gender, or ethnicity. Bias is still *possible*: e.g. if the training data has different rates of decline by group, the model can reflect that; selection bias (who is in the sample) can also matter. The follow-up question is chosen only by **top contributing feature** (e.g. health rating, activity, stress), not by demographics. To check for unfairness, run stratified metrics (F2, error rates) by group when demographics are available.
+
 ## Dataset
 
 - **NLSY97:** When path contains `nlsy97` (e.g. `nlsy97_all_1997-2019.csv`), the loader uses **real NLSY97** data: reads first 51 columns (1 ID + 10 waves × 5 vars), reshapes wide→long (one row per person per wave). Max rows = number of **persons** (up to 8984).

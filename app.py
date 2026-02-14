@@ -67,6 +67,18 @@ if result:
     col2.metric("PR-AUC", f"{m['pr_auc']:.3f}")
     col3.metric("ROC-AUC", f"{m['roc_auc']:.3f}")
 
+    if result.get("fairness"):
+        with st.expander("Fairness by group (stratified metrics)"):
+            fa = result["fairness"]
+            if fa.get("by_group"):
+                st.caption("Demographics are never model inputs; used only to check for disparity.")
+                rows = []
+                for g, v in fa["by_group"].items():
+                    rows.append({"Group": g, "F2": f"{v['f2']:.3f}", "PR-AUC": f"{v['pr_auc']:.3f}", "ROC-AUC": f"{v['roc_auc']:.3f}", "n": v["n"]})
+                st.dataframe(pd.DataFrame(rows), use_container_width=True, hide_index=True)
+                if fa.get("disparity", {}).get("f2_max_min") is not None:
+                    st.metric("F2 max − min across groups", f"{fa['disparity']['f2_max_min']:.3f}")
+
     st.subheader("Sample outputs (last wave per person)")
     df = result["df"]
     last = df.groupby(ID_COL).tail(1)[[ID_COL, "risk_score", "risk_band", "risk_category"]].head(15)

@@ -13,7 +13,9 @@ from .risk_model import train_risk_model, score_0_100, risk_band, risk_category_
 from .explainability import get_top_contributors, human_readable_changes, explanation_text
 from .follow_up import pick_follow_up
 from .target_no_leakage import build_no_leakage_training
-from .config import ID_COL, WAVE_COL, HEALTH_LIFESTYLE_COLS, RANDOM_STATE
+from .config import ID_COL, WAVE_COL, HEALTH_LIFESTYLE_COLS, DEMOGRAPHIC_COLS, RANDOM_STATE
+from . import fairness as fairness_mod
+from sklearn.model_selection import train_test_split
 
 
 def _synthetic_longitudinal(n_persons: int = 80, waves: int = 6) -> pd.DataFrame:
@@ -68,6 +70,7 @@ def run_pipeline(
         feature_cols = [c for c in numeric if c not in [ID_COL, WAVE_COL]][:8]
     if not feature_cols:
         raise ValueError("No feature columns left after loading; check data and handle_missing.")
+    fairness_result = None
 
     # 2) Baselines
     baselines = build_baselines(df, feature_cols=feature_cols)
@@ -106,6 +109,28 @@ def run_pipeline(
         # For scoring full df we need same feature names; full df has them from step 3
         X = df[[c for c in model_feat if c in df.columns]].reindex(columns=model_feat).fillna(0)
 
+    # 5b) Optional fairness: stratified metrics by demographic group (never used as features)
+    fairness_result = None
+    if DEMOGRAPHIC_COLS and all(c in df.columns for c in DEMOGRAPHIC_COLS) and not X_noleak.empty:
+        demo_per_person = df.groupby(ID_COL)[DEMOGRAPHIC_COLS].first()
+        group_col = DEMOGRAPHIC_COLS[0]
+        groups_noleak = X_noleak[ID_COL].map(demo_per_person[group_col])
+        X_noleak_feat = X_noleak[model_feat].fillna(0)
+        _, X_te, _, y_te = train_test_split(
+            X_noleak_feat, y_noleak, test_size=0.2, random_state=RANDOM_STATE,
+            stratify=y_noleak if y_noleak.nunique() > 1 else None,
+        )
+        if scaler is not None:
+            X_te_scaled = pd.DataFrame(scaler.transform(X_te), index=X_te.index, columns=X_te.columns)
+        else:
+            X_te_scaled = X_te
+        probs_te = model.predict_proba(X_te_scaled)[:, 1]
+        preds_te = (probs_te >= threshold).astype(int)
+        groups_te = groups_noleak.loc[y_te.index]
+        fairness_result = fairness_mod.stratified_metrics(
+            y_te.values, preds_te, probs_te, groups_te, beta=2.0,
+        )
+
     # 6) Score 0-100 and category for full df (for display); model was trained on no-leakage set
     X_score = df.reindex(columns=model_feat).fillna(0)
     if scaler is not None:
@@ -132,7 +157,7 @@ def run_pipeline(
         follow_up = pick_follow_up(contrib_names, cat, score)
         return score, band, cat, expl, follow_up
 
-    return {
+    out = {
         "model": model,
         "scaler": scaler,
         "baselines": baselines,
@@ -142,6 +167,9 @@ def run_pipeline(
         "score_one": score_one,
         "df": df,
     }
+    if fairness_result is not None:
+        out["fairness"] = fairness_result
+    return out
 
 
 def demo_with_synthetic():
