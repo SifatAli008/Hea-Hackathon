@@ -12,6 +12,7 @@ from .weak_signals import moving_average_change, trend_slope, flag_declining
 from .risk_model import train_risk_model, score_0_100, risk_band, risk_category_from_signals
 from .explainability import get_top_contributors, human_readable_changes, explanation_text
 from .follow_up import pick_follow_up
+from .target_no_leakage import build_no_leakage_training
 from .config import ID_COL, WAVE_COL, HEALTH_LIFESTYLE_COLS, RANDOM_STATE
 
 
@@ -65,23 +66,36 @@ def run_pipeline(
     df = trend_slope(df, feature_cols=feature_cols, window=4)
     df = flag_declining(df)
 
-    # 4) Target (synthetic if not provided: "declining" in any key feature)
-    if target_col and target_col in df.columns:
-        y = df[target_col].fillna(0).astype(int)
+    # 4) No-leakage training: target from LAST wave only, features from PAST waves only
+    X_noleak, y_noleak = build_no_leakage_training(
+        df, feature_cols=feature_cols,
+        target_threshold=2.5,
+        target_col=target_col or feature_cols[0],
+    )
+    if X_noleak.empty or len(y_noleak) < 10:
+        # Fallback if too few persons: use old target (less strict)
+        target_col_use = target_col or (feature_cols[0] if feature_cols else None)
+        if target_col_use and target_col_use in df.columns:
+            y = (df.groupby(ID_COL)[target_col_use].transform("last") < 2.5).astype(int)
+        else:
+            decline_cols = [c for c in df.columns if c.endswith("_declining")]
+            y = df[decline_cols].sum(axis=1) > 0 if decline_cols else pd.Series(0, index=df.index)
+            y = y.astype(int)
+        model_feat = [c for c in df.columns if any(x in c for x in ["_z", "_deviation", "_pct_change", "_slope", "_declining"]) and c != ID_COL]
+        model_feat = [c for c in model_feat if c in df.columns][:20]
+        X = df[model_feat].fillna(0)
+        model, threshold, f2, pr_auc, roc_auc = train_risk_model(X, y, model_type="logistic", test_size=0.2)
     else:
-        decline_cols = [c for c in df.columns if c.endswith("_declining")]
-        y = df[decline_cols].sum(axis=1) > 0 if decline_cols else pd.Series(0, index=df.index)
-        y = y.astype(int)
+        model_feat = [c for c in X_noleak.columns if c != ID_COL and any(x in c for x in ["_deviation", "_pct_change", "_z", "_slope", "_declining"])]
+        model_feat = [c for c in model_feat if c in X_noleak.columns][:20]
+        X_train = X_noleak[model_feat].fillna(0)
+        model, threshold, f2, pr_auc, roc_auc = train_risk_model(X_train, y_noleak, model_type="logistic", test_size=0.2)
+        # For scoring full df we need same feature names; full df has them from step 3
+        X = df[[c for c in model_feat if c in df.columns]].reindex(columns=model_feat).fillna(0)
 
-    # 5) Model features: deviations, slopes, flags (no raw future/leakage)
-    model_feat = [c for c in df.columns if any(x in c for x in ["_z", "_deviation", "_pct_change", "_slope", "_declining"])]
-    model_feat = [c for c in model_feat if c in df.columns][:20]
-    X = df[model_feat].fillna(0)
-
-    model, threshold, f2, pr_auc, roc_auc = train_risk_model(X, y, model_type="logistic", test_size=0.2)
-
-    # 6) Score 0-100 and category for last wave per person
-    probs = model.predict_proba(X)[:, 1]
+    # 6) Score 0-100 and category for full df (for display); model was trained on no-leakage set
+    X_score = df.reindex(columns=model_feat).fillna(0)
+    probs = model.predict_proba(X_score)[:, 1]
     df["_risk_prob"] = probs
     df["risk_score"] = df["_risk_prob"].apply(score_0_100)
     df["risk_band"] = df["risk_score"].apply(risk_band)
@@ -90,7 +104,7 @@ def run_pipeline(
     top_contrib = get_top_contributors(model, model_feat, model_type="logistic", top_k=5)
 
     def score_one(row: pd.Series) -> Tuple[float, str, str, str, str]:
-        X_row = row[model_feat].fillna(0).values.reshape(1, -1)
+        X_row = row.reindex(model_feat).fillna(0).values.reshape(1, -1)
         prob = model.predict_proba(X_row)[0, 1]
         score = score_0_100(prob)
         band = risk_band(score)
