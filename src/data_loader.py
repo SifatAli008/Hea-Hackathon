@@ -40,6 +40,38 @@ def _load_csv_line_by_line(path: Path, max_cols: int, n_rows: int) -> pd.DataFra
     return df
 
 
+def _load_nlsy97_wide_to_long(path: Path, n_rows: int, n_waves: int = 10, n_features: int = 5) -> pd.DataFrame:
+    """
+    NLSY97 is wide: one row per person, many columns. Reshape to long: cols 1..n_features = wave0, next n_features = wave1, ...
+    Reads first 1 + n_waves*n_features columns. Col 0 = PUBID, then n_waves blocks of n_features.
+    """
+    n_cols = 1 + n_waves * n_features
+    df = _load_csv_line_by_line(path, max_cols=n_cols, n_rows=n_rows)
+    if df.empty or len(df.columns) < n_cols:
+        return df
+    df = df.rename(columns={df.columns[0]: ID_COL})
+    # Feature names for pipeline (health_rating, stress_level, activity_level, etc.)
+    feat_names = ["health_rating", "stress_level", "activity_level", "var_3", "var_4"][:n_features]
+    if len(feat_names) < n_features:
+        feat_names += [f"var_{i}" for i in range(len(feat_names), n_features)]
+    long_rows = []
+    for i, (_, row) in enumerate(df.iterrows()):
+        # Use row index as PUBID (one person per wide row); NLSY97 col 0 may be missing codes (-4,-5)
+        pid = i
+        for w in range(n_waves):
+            start = 1 + w * n_features
+            end = start + n_features
+            if end > len(row):
+                break
+            r = {ID_COL: pid, WAVE_COL: w}
+            for j, name in enumerate(feat_names):
+                val = row.iloc[start + j]
+                r[name] = pd.to_numeric(val, errors="coerce")
+            long_rows.append(r)
+    out = pd.DataFrame(long_rows)
+    return out
+
+
 def load_longitudinal(
     path: Optional[Path] = None,
     id_col: str = ID_COL,
@@ -47,25 +79,30 @@ def load_longitudinal(
     chunk_rows: int = 100_000,
     sample_n: Optional[int] = None,
     max_cols: Optional[int] = 50,
+    use_nlsy97_format: Optional[bool] = None,
 ) -> pd.DataFrame:
     """
-    Load longitudinal CSV. Uses line-by-line read (no pandas parser) to avoid OOM on huge wide files (e.g. NLSY97).
+    Load longitudinal CSV. Uses line-by-line read to avoid OOM on huge wide files (e.g. NLSY97).
+    When path contains 'nlsy97' (or use_nlsy97_format=True): loads real NLSY97, reshapes wide→long.
     """
     path = path or NLSY97_CSV
     path = Path(path)
     if not path.exists():
         raise FileNotFoundError(f"Data not found: {path}. Set HEA_DATA_PATH or pass path.")
 
-    n_to_read = min(sample_n or 1500, 2000)
-    max_cols = max_cols or 50
-
-    df = _load_csv_line_by_line(path, max_cols=max_cols, n_rows=n_to_read)
+    is_nlsy97 = use_nlsy97_format if use_nlsy97_format is not None else ("nlsy97" in path.name.lower())
+    if is_nlsy97:
+        n_to_read = min(sample_n or 8984, 8984)  # all NLSY97 rows if not specified
+        df = _load_nlsy97_wide_to_long(path, n_rows=n_to_read, n_waves=10, n_features=5)
+    else:
+        n_to_read = min(sample_n or 1500, 2000)
+        max_cols = max_cols or 50
+        df = _load_csv_line_by_line(path, max_cols=max_cols, n_rows=n_to_read)
+        if id_col not in df.columns and len(df.columns) > 0:
+            df = df.rename(columns={df.columns[0]: id_col})
 
     if df is None or len(df) == 0:
         raise ValueError(f"No rows read from {path}")
-
-    if id_col not in df.columns and len(df.columns) > 0:
-        df = df.rename(columns={df.columns[0]: id_col})
     return df
 
 

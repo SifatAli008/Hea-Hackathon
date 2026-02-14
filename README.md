@@ -67,8 +67,9 @@ Use “Synthetic demo (no file)” in the sidebar — runs on small generated da
 
 ## Dataset
 
-- **NLSY97** (or other longitudinal self-reported health data).  
-- Important: no **data leakage** — do not use features that directly reveal the outcome (e.g. medication for the predicted condition).
+- **NLSY97:** When path contains `nlsy97` (e.g. `nlsy97_all_1997-2019.csv`), the loader uses **real NLSY97** data: reads first 51 columns (1 ID + 10 waves × 5 vars), reshapes wide→long (one row per person per wave). Max rows = number of **persons** (up to 8984).
+- **Sample CSV** in repo: `data/sample_longitudinal.csv` (synthetic, same structure).
+- No **data leakage** — do not use features that directly reveal the outcome (e.g. medication for the predicted condition).
 
 ## License & compliance
 

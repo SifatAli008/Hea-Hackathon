@@ -28,9 +28,15 @@ if data_source == "Upload CSV":
             df_input = df_input.rename(columns={df_input.columns[0]: ID_COL})
 elif data_source == "Use path (NLSY97 or /s3/...)":
     default_path = str(SAMPLE_CSV) if SAMPLE_CSV.exists() else str(NLSY97_CSV)
-    path_str = st.sidebar.text_input("Path to CSV", value=default_path, help="Use data/sample_longitudinal.csv (in repo) or your NLSY97 path.")
+    path_str = st.sidebar.text_input("Path to CSV", value=default_path, help="Use data/sample_longitudinal.csv (in repo) or nlsy97_all_1997-2019.csv for real NLSY97.")
     data_path = Path(path_str)
-    sample_n_path = st.sidebar.number_input("Max rows (memory-safe)", min_value=300, max_value=2000, value=800, step=200, help="Line-by-line read, first 50 cols only. Use 500–800 if OOM.")
+    is_nlsy97 = data_path.exists() and "nlsy97" in path_str.lower()
+    max_rows_val = 8984 if is_nlsy97 else 2000
+    sample_n_path = st.sidebar.number_input(
+        "Max rows (persons for NLSY97)" if is_nlsy97 else "Max rows (memory-safe)",
+        min_value=300, max_value=max_rows_val, value=min(2000, max_rows_val), step=200 if not is_nlsy97 else 500,
+        help="NLSY97: number of persons (wide→long, 10 waves × 5 vars). Else: rows, first 50 cols."
+    )
     if data_path.exists():
         st.sidebar.success(f"Found: {path_str}")
     else:
