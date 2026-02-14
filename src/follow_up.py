@@ -1,10 +1,12 @@
 """
 Empathetic follow-up question generator. No diagnosis, no treatment; supportive tone.
+Rules: consider life events (job loss, retirement, divorce, stress).
 """
+import random
 from typing import List, Optional
 
 
-# Templates by dominant signal type (psycho-emotional, metabolic, general)
+# Templates by dominant signal type (psycho-emotional, metabolic, general). Rules: life events.
 TEMPLATES = {
     "mood": [
         "We noticed some changes in your mood ratings recently. Would you like to share if anything stressful has been happening?",
@@ -13,6 +15,10 @@ TEMPLATES = {
     "stress": [
         "We noticed some changes in your stress levels lately. Would you like to share if anything has been weighing on you?",
         "It looks like stress might have increased recently. Would you like to share what's been on your mind?",
+    ],
+    "life_events": [
+        "We noticed some changes that sometimes go with life transitions (work, relationships, or stress). Would you like to share if anything has shifted recently?",
+        "Your responses suggest things may have been different lately. Would you like to share if there have been any big changes or stresses we should know about?",
     ],
     "sleep": [
         "We noticed some recent changes in your sleep pattern. Has anything been affecting your rest lately?",
@@ -40,7 +46,7 @@ def pick_follow_up(
 ) -> str:
     """
     Choose one empathetic follow-up question based on top contributing features and risk category.
-    top_contributors: list of feature names (e.g. mood_pct_change, sleep_deviation).
+    Rules: life events (job loss, retirement, divorce, stress). Varies by template choice.
     """
     key = "general"
     for name in top_contributors:
@@ -51,6 +57,9 @@ def pick_follow_up(
         if "stress" in name_lower:
             key = "stress"
             break
+        if "life_event" in name_lower:
+            key = "life_events"
+            break
         if "sleep" in name_lower:
             key = "sleep"
             break
@@ -60,6 +69,10 @@ def pick_follow_up(
         if "health" in name_lower or "rating" in name_lower:
             key = "health_rating"
             break
-
+    # Psycho-emotional category: prefer life-events template (Rules: job loss, retirement, divorce, stress)
+    if category and "psycho" in category.lower() and key == "general":
+        key = "life_events"
     templates = TEMPLATES.get(key, TEMPLATES["general"])
-    return templates[0]  # or random.choice(templates) for variety
+    # Reproducible variety: seed from risk_score so same person gets same question
+    rng = random.Random(int(risk_score * 10) % (2 ** 32))
+    return rng.choice(templates)

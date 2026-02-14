@@ -32,6 +32,10 @@ HEALTH_LIFESTYLE_COLS = [
 ]
 # If using raw NLSY97 codes, set HEALTH_LIFESTYLE_COLS to list of actual column names.
 
+# Life events (Rules: job loss, retirement, divorce, stress). When dataset has these columns, add here.
+# NLSY97 loader uses 6th var as life_event_proxy when n_features=6.
+LIFE_EVENT_COLS = []  # e.g. ["employment_status", "marital_status"] when mapped
+
 # Risk score bands
 RISK_LOW = (0, 30)
 RISK_MODERATE = (31, 60)

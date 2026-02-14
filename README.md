@@ -41,6 +41,7 @@ Hea/
 ├── data/
 │   └── sample_longitudinal.csv   # Small sample (in repo) — demo without NLSY97
 ├── HACKATHON_CHECKLIST.md  # Submission checklist vs judging criteria
+├── RULES_GAP.md           # Rules.pdf — what's missing / done
 └── notebooks/             # Optional exploration
 ```
 
@@ -63,7 +64,7 @@ Use “Synthetic demo (no file)” in the sidebar — runs on small generated da
 
 ## Approach
 
-1. **Context-aware detection:** Compare each person to their **own** baseline (mean of early waves), not population.
+1. **Context-aware detection:** Compare each person to their **own** baseline (mean of early waves), not population. *Life events* (job loss, retirement, divorce, stress): NLSY97 uses a 6th longitudinal variable as `life_event_proxy`; Psycho-emotional follow-up uses a life-events template; config `LIFE_EVENT_COLS` for employment/marital when mapped.
 2. **Weak signals:** Moving average change, z-score vs personal history, trend slope; flag declining trends.
 3. **Risk score:** 0–100 from a lightweight model (e.g. Logistic Regression), F2-optimized.
 4. **Risk category:** Psycho-emotional / Metabolic / Cardiovascular from dominant signals.

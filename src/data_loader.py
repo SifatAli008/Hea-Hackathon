@@ -51,7 +51,8 @@ def _load_nlsy97_wide_to_long(path: Path, n_rows: int, n_waves: int = 10, n_feat
         return df
     df = df.rename(columns={df.columns[0]: ID_COL})
     # Feature names for pipeline (health_rating, stress_level, activity_level, etc.)
-    feat_names = ["health_rating", "stress_level", "activity_level", "var_3", "var_4"][:n_features]
+    # 6th var used as life_event_proxy (Rules: consider job loss, retirement, divorce, stress)
+    feat_names = ["health_rating", "stress_level", "activity_level", "var_3", "var_4", "life_event_proxy"][:n_features]
     if len(feat_names) < n_features:
         feat_names += [f"var_{i}" for i in range(len(feat_names), n_features)]
     long_rows = []
@@ -102,7 +103,8 @@ def load_longitudinal(
     is_nlsy97 = use_nlsy97_format if use_nlsy97_format is not None else ("nlsy97" in path.name.lower())
     if is_nlsy97:
         n_to_read = min(sample_n or 8984, 8984)  # all NLSY97 rows if not specified
-        df = _load_nlsy97_wide_to_long(path, n_rows=n_to_read, n_waves=10, n_features=5)
+        # 6 features: 5 health/lifestyle + life_event_proxy (Rules: life events)
+        df = _load_nlsy97_wide_to_long(path, n_rows=n_to_read, n_waves=10, n_features=6)
     else:
         n_to_read = min(sample_n or 1500, 2000)
         max_cols = max_cols or 50
