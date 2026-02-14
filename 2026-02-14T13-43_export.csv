@@ -1,0 +1,16 @@
+﻿,PUBID,risk_score,risk_band,risk_category
+9,0,97.45887809516974,High,Metabolic
+19,1,0.9654351813999333,Low,Psycho-emotional
+29,2,99.84786549293065,High,Metabolic
+39,3,99.74339578395654,High,Metabolic
+49,4,0.17450153824056172,Low,Psycho-emotional
+59,5,0.037373256585602824,Low,Metabolic
+69,6,0.17450260762918599,Low,Psycho-emotional
+79,7,32.43432064765365,Moderate,Psycho-emotional
+89,8,0.6517975061206713,Low,Psycho-emotional
+99,9,5.97728047096793,Low,Psycho-emotional
+109,10,78.35123536747786,High,Metabolic
+119,11,85.62527564799576,High,Psycho-emotional
+129,12,0.17449993416989132,Low,Psycho-emotional
+139,13,6.651737115189844,Low,Psycho-emotional
+149,14,18.527770449468427,Low,Metabolic
