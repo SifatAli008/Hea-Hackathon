@@ -89,11 +89,63 @@ We do not use age, gender, or ethnicity as model inputs. When the dataset includ
 
 **Could the model become biased?** Not by design — we never feed demographics into the model, so scores and categories are not directly based on age, gender, or ethnicity. Bias is still *possible*: e.g. if the training data has different rates of decline by group, the model can reflect that; selection bias (who is in the sample) can also matter. The follow-up question is chosen only by **top contributing feature** (e.g. health rating, activity, stress), not by demographics. To check for unfairness, run stratified metrics (F2, error rates) by group when demographics are available.
 
-## Dataset
+## Data description (tables)
 
-- **NLSY97:** When path contains `nlsy97` (e.g. `nlsy97_all_1997-2019.csv`), the loader uses **real NLSY97** data: reads first 51 columns (1 ID + 10 waves × 5 vars), reshapes wide→long (one row per person per wave). Max rows = number of **persons** (up to 8984).
-- **Sample CSV** in repo: `data/sample_longitudinal.csv` (synthetic, same structure).
-- No **data leakage** — do not use features that directly reveal the outcome (e.g. medication for the predicted condition).
+### Dataset overview
+
+| Dataset | File | Source | Format | Loader | Max rows |
+|--------|------|--------|--------|--------|----------|
+| **NLSY97** | `nlsy97_all_1997-2019.csv` | BLS/NLS (National Longitudinal Survey of Youth 1997) | Wide (1 row per person) | Path contains `nlsy97` → read first 61 cols, reshape wide→long | 8,984 persons |
+| **Sample** | `data/sample_longitudinal.csv` | Repo (synthetic) | Long (person–wave rows) | Default when path not NLSY97 | 2,000 (configurable) |
+
+### NLSY97 file structure (as used in this project)
+
+| Item | Value |
+|------|--------|
+| **Columns read** | First **61** (column 0 = person ID + 10 waves × 6 variables) |
+| **Reshape** | Wide → long: one row per **person–wave**; cols: `PUBID`, `wave` (0..9), 6 feature cols |
+| **Person ID** | Column 0 → `PUBID` (or row index if ID missing) |
+| **Cohort** | ~8,984 respondents (born 1980–1984, ages 12–16 as of Dec 31, 1996) |
+| **Waves in file** | First 10 waves used (0..9); NLSY97 has more rounds in full survey |
+
+### NLSY97 variables (logical names)
+
+| Position per wave | Logical name | Role in pipeline |
+|------------------|---------------|------------------|
+| 1 | `health_rating` | Self-reported health (baseline + signals) |
+| 2 | `stress_level` | Stress / mental load |
+| 3 | `activity_level` | Physical activity |
+| 4 | `var_3` | Additional health/lifestyle |
+| 5 | `var_4` | Additional health/lifestyle |
+| 6 | `life_event_proxy` | Proxy for life events (job loss, retirement, divorce, stress) |
+
+### NLSY97 missing codes (converted to NaN)
+
+| Code | Meaning (typical NLSY97) |
+|------|---------------------------|
+| -5 | Refusal / invalid |
+| -4 | Non-interview |
+| -3 | Skip |
+| -2 | Out of universe |
+| -1 | Other non-valid |
+
+### Sample CSV (`data/sample_longitudinal.csv`)
+
+| Item | Value |
+|------|--------|
+| **Format** | Long: `PUBID`, `wave`, plus health/lifestyle columns (e.g. `health_rating`, `stress_level`, `activity_level`) |
+| **Purpose** | Demo without NLSY97 file; same structure as pipeline expects after NLSY97 reshape |
+| **Rows** | ~30k (configurable); first 50 cols read for non-NLSY97 paths |
+
+### Data description references
+
+| Link | Description |
+|------|-------------|
+| [NLSY97 cohort index](https://www.nlsinfo.org/content/cohorts/nlsy97) | NLS Info — NLSY97 cohort |
+| [NLSY97 documentation](https://nlsinfo.org/content/cohorts/nlsy97/using-and-understanding-the-data/nlsy97-documentation) | Using and understanding NLSY97 data |
+| [BLS NLSY97 overview](https://www.bls.gov/nls/nlsy97.htm) | Bureau of Labor Statistics NLSY97 |
+
+**No data leakage:** We do not use features that directly reveal the outcome (e.g. medication for the predicted condition). Target = last wave only; features = past waves only.
 
 ## License & compliance
 
