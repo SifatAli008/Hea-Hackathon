@@ -36,7 +36,8 @@ Hea/
 │   ├── explainability.py  # Feature importance, human-readable summary
 │   ├── follow_up.py       # Empathetic question templates
 │   └── pipeline.py        # End-to-end pipeline
-├── data/                  # Optional; or use /s3
+├── data/
+│   └── sample_longitudinal.csv   # Small sample (in repo) — demo without NLSY97
 └── notebooks/             # Optional exploration
 ```
 
@@ -53,7 +54,7 @@ Use “Synthetic demo (no file)” in the sidebar — runs on small generated da
 
 **With data:**  
 - Upload a CSV in the app, or  
-- Set “Use path” to your NLSY97 path (e.g. `/s3/.../nlsy97_all_1997-2019.csv`) and use `sample_n` for large files.
+- Set “Use path” to your NLSY97 path (e.g. `/s3/.../nlsy97_all_1997-2019.csv`) and use `sample_n` for large files. Or use path `data/sample_longitudinal.csv` (in repo) for a small demo CSV.
 
 ## Approach
 

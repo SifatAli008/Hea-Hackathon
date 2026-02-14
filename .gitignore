@@ -1,4 +1,4 @@
-# Data (large / binary)
+# Data (large / binary) — keep sample for demo
 *.csv
 *.dat
 *.sas
@@ -8,6 +8,7 @@
 *.NLSY97
 data/*.csv
 data/*.dat
+!data/sample_longitudinal.csv
 
 # Python
 __pycache__/

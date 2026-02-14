@@ -9,6 +9,8 @@ from pathlib import Path
 DATA_BASE = os.environ.get("HEA_DATA_PATH", ".")
 DATA_PATH = Path(DATA_BASE)
 
+# Sample CSV in repo (demo without NLSY97); override with full NLSY97 path if you have it
+SAMPLE_CSV = Path(__file__).resolve().parent.parent / "data" / "sample_longitudinal.csv"
 # NLSY97: adjust to your file location (e.g. DATA_PATH / "nlsy97_all_1997-2019.csv")
 # On Nebius: e.g. Path("/s3/hackathon-team-fabric3-6/nlsy97_all_1997-2019.csv")
 NLSY97_CSV = DATA_PATH / "nlsy97_all_1997-2019.csv"

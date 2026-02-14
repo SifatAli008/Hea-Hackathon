@@ -7,7 +7,7 @@ import pandas as pd
 from pathlib import Path
 
 from src.pipeline import run_pipeline
-from src.config import NLSY97_CSV, ID_COL
+from src.config import NLSY97_CSV, SAMPLE_CSV, ID_COL
 
 st.set_page_config(page_title="Personal Health Drift Detector", layout="centered")
 st.title("Personal Health Drift Detector (PHDD)")
@@ -27,7 +27,8 @@ if data_source == "Upload CSV":
         if ID_COL not in df_input.columns and len(df_input.columns) > 0:
             df_input = df_input.rename(columns={df_input.columns[0]: ID_COL})
 elif data_source == "Use path (NLSY97 or /s3/...)":
-    path_str = st.sidebar.text_input("Path to CSV", value=str(NLSY97_CSV))
+    default_path = str(SAMPLE_CSV) if SAMPLE_CSV.exists() else str(NLSY97_CSV)
+    path_str = st.sidebar.text_input("Path to CSV", value=default_path, help="Use data/sample_longitudinal.csv (in repo) or your NLSY97 path.")
     data_path = Path(path_str)
     sample_n_path = st.sidebar.number_input("Max rows (memory-safe)", min_value=300, max_value=2000, value=800, step=200, help="Line-by-line read, first 50 cols only. Use 500–800 if OOM.")
     if data_path.exists():
