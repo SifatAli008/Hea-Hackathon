@@ -2,6 +2,8 @@
 
 Longitudinal health risk detection from self-reported data. Detects **personal baseline drift** and **weak signals**, outputs a **risk score (0–100)**, **risk category**, **explanation**, and an **empathetic follow-up question**. No diagnosis, no treatment advice.
 
+**Live app:** [https://hea-hackathon.streamlit.app/](https://hea-hackathon.streamlit.app/)
+
 ## Requirements
 
 - Python 3.9+
@@ -43,7 +45,9 @@ Hea/
 
 ## Run demo
 
-**Streamlit (recommended):**
+**Deployed app:** [https://hea-hackathon.streamlit.app/](https://hea-hackathon.streamlit.app/)
+
+**Local (Streamlit):**
 
 ```bash
 streamlit run app.py
