@@ -10,7 +10,7 @@ from .data_loader import load_longitudinal, align_waves, handle_missing
 from .baseline import build_baselines, current_vs_baseline
 from .weak_signals import moving_average_change, trend_slope, flag_declining
 from .risk_model import train_risk_model, score_0_100, risk_band, risk_category_from_signals
-from .explainability import get_top_contributors, human_readable_changes, explanation_text
+from .explainability import get_top_contributors, human_readable_changes, explanation_text, main_change_names
 from .follow_up import pick_follow_up
 from .target_no_leakage import build_no_leakage_training
 from .config import ID_COL, WAVE_COL, HEALTH_LIFESTYLE_COLS, DEMOGRAPHIC_COLS, RANDOM_STATE
@@ -152,9 +152,11 @@ def run_pipeline(
         band = risk_band(score)
         cat = risk_category_from_signals(row, psycho_cols=feature_cols)
         contrib_names = top_contrib.index.tolist()
-        changes = human_readable_changes(row, deviation_cols=[c for c in row.index if "_pct_change" in c or "_deviation" in c])
+        dev_cols = [c for c in row.index if "_pct_change" in c or "_deviation" in c]
+        changes = human_readable_changes(row, deviation_cols=dev_cols)
         expl = explanation_text(changes, score, cat)
-        follow_up = pick_follow_up(contrib_names, cat, score)
+        main_names = main_change_names(row, deviation_cols=dev_cols)
+        follow_up = pick_follow_up(contrib_names, cat, score, main_change_names=main_names)
         return score, band, cat, expl, follow_up
 
     out = {

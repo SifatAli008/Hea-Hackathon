@@ -43,14 +43,17 @@ def pick_follow_up(
     top_contributors: List[str],
     category: str,
     risk_score: float,
+    main_change_names: Optional[List[str]] = None,
 ) -> str:
     """
-    Choose one empathetic follow-up question based on top contributing features and risk category.
-    Rules: life events (job loss, retirement, divorce, stress). Varies by template choice.
+    Choose one empathetic follow-up question. Prefer main_change_names (order of change in explanation)
+    so the question matches "why we flagged"; else use top_contributors (model coefficients).
     """
     key = "general"
-    for name in top_contributors:
-        name_lower = name.lower()
+    # Prefer order of change in explanation so follow-up aligns with "Main changes we observed"
+    order = (main_change_names or []) + [n for n in top_contributors if n not in (main_change_names or [])]
+    for name in order:
+        name_lower = str(name).lower()
         if "mood" in name_lower:
             key = "mood"
             break
