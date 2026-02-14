@@ -1,12 +1,14 @@
 """
 Risk scoring (0-100) and risk category: Cardiovascular, Metabolic, Psycho-emotional.
 Lightweight model (Logistic Regression or Random Forest), F2-optimized.
+Scaling for NLSY97 / large numeric ranges.
 """
 import numpy as np
 import pandas as pd
-from typing import List, Optional, Tuple
+from typing import List, Optional, Tuple, Any
 from sklearn.linear_model import LogisticRegression
 from sklearn.ensemble import RandomForestClassifier
+from sklearn.preprocessing import StandardScaler
 from sklearn.metrics import fbeta_score, average_precision_score, roc_auc_score
 from sklearn.model_selection import train_test_split
 import warnings
@@ -17,7 +19,7 @@ from .config import RISK_LOW, RISK_MODERATE, RISK_HIGH, RANDOM_STATE
 def get_model(model_type: str = "logistic", class_weight: str = "balanced"):
     """Return classifier. Use class_weight='balanced' for imbalanced data."""
     if model_type == "logistic":
-        return LogisticRegression(max_iter=1000, class_weight=class_weight, random_state=RANDOM_STATE)
+        return LogisticRegression(max_iter=3000, class_weight=class_weight, random_state=RANDOM_STATE)
     return RandomForestClassifier(n_estimators=100, class_weight=class_weight, random_state=RANDOM_STATE)
 
 
@@ -27,14 +29,20 @@ def train_risk_model(
     model_type: str = "logistic",
     test_size: float = 0.2,
     threshold_for_f2: float = 0.3,
-) -> Tuple[object, float, float, float, float]:
+    scale: bool = True,
+) -> Tuple[object, float, float, float, float, Optional[Any]]:
     """
-    Train model and return (model, best_threshold, f2, pr_auc, roc_auc).
-    Tries lower decision threshold to maximize F2 (recall).
+    Train model and return (model, best_threshold, f2, pr_auc, roc_auc, scaler).
+    scale=True: StandardScaler for stable convergence on NLSY97 / wide numeric ranges.
     """
     X_train, X_test, y_train, y_test = train_test_split(
         X, y, test_size=test_size, random_state=RANDOM_STATE, stratify=y if y.nunique() > 1 else None
     )
+    scaler = None
+    if scale:
+        scaler = StandardScaler()
+        X_train = pd.DataFrame(scaler.fit_transform(X_train), index=X_train.index, columns=X_train.columns)
+        X_test = pd.DataFrame(scaler.transform(X_test), index=X_test.index, columns=X_test.columns)
     model = get_model(model_type=model_type)
     model.fit(X_train, y_train)
 
@@ -50,7 +58,7 @@ def train_risk_model(
         f2 = fbeta_score(y_test, pred, beta=2, zero_division=0)
         if f2 >= best_f2:
             best_f2, best_t = f2, t
-    return model, best_t, best_f2, pr_auc, roc_auc
+    return model, best_t, best_f2, pr_auc, roc_auc, scaler
 
 
 def score_0_100(prob: float, threshold: float = 0.3) -> float:

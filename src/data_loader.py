@@ -66,9 +66,18 @@ def _load_nlsy97_wide_to_long(path: Path, n_rows: int, n_waves: int = 10, n_feat
             r = {ID_COL: pid, WAVE_COL: w}
             for j, name in enumerate(feat_names):
                 val = row.iloc[start + j]
-                r[name] = pd.to_numeric(val, errors="coerce")
+                v = pd.to_numeric(val, errors="coerce")
+                # NLSY97 missing/skip codes → NaN
+                if pd.notna(v) and int(v) in (-5, -4, -3, -2, -1):
+                    v = np.nan
+                r[name] = v
             long_rows.append(r)
     out = pd.DataFrame(long_rows)
+    # Replace any remaining NLSY97 missing codes in feature columns
+    nlsy97_missing = [-5, -4, -3, -2, -1]
+    for c in feat_names:
+        if c in out.columns:
+            out[c] = out[c].replace(nlsy97_missing, np.nan)
     return out
 
 

@@ -50,12 +50,24 @@ def run_pipeline(
     else:
         df = _synthetic_longitudinal()
     df = align_waves(df)
-    df = handle_missing(df)
+    # NLSY97: many -4/-5 → NaN, so use high max_missing_frac to keep columns
+    is_nlsy97 = data_path and Path(data_path).exists() and "nlsy97" in str(data_path).lower()
+    max_missing = 0.95 if is_nlsy97 else 0.5
+    df = handle_missing(df, max_missing_frac=max_missing)
+    # Per-person fill for longitudinal (NLSY97): fill NaN within each person only
+    if ID_COL in df.columns and WAVE_COL in df.columns:
+        df = df.sort_values([ID_COL, WAVE_COL])
+        num_cols = df.select_dtypes(include=[np.number]).columns.tolist()
+        if num_cols:
+            df[num_cols] = df.groupby(ID_COL)[num_cols].ffill().bfill()
+        df = df.dropna(how="all")
 
     feature_cols = feature_cols or [c for c in HEALTH_LIFESTYLE_COLS if c in df.columns]
     if not feature_cols:
         numeric = df.select_dtypes(include=[np.number]).columns.tolist()
         feature_cols = [c for c in numeric if c not in [ID_COL, WAVE_COL]][:8]
+    if not feature_cols:
+        raise ValueError("No feature columns left after loading; check data and handle_missing.")
 
     # 2) Baselines
     baselines = build_baselines(df, feature_cols=feature_cols)
@@ -67,10 +79,11 @@ def run_pipeline(
     df = flag_declining(df)
 
     # 4) No-leakage training: target from LAST wave only, features from PAST waves only
+    target_col_use = target_col or (feature_cols[0] if feature_cols else None)
     X_noleak, y_noleak = build_no_leakage_training(
         df, feature_cols=feature_cols,
         target_threshold=2.5,
-        target_col=target_col or feature_cols[0],
+        target_col=target_col_use,
     )
     if X_noleak.empty or len(y_noleak) < 10:
         # Fallback if too few persons: use old target (less strict)
@@ -84,17 +97,19 @@ def run_pipeline(
         model_feat = [c for c in df.columns if any(x in c for x in ["_z", "_deviation", "_pct_change", "_slope", "_declining"]) and c != ID_COL]
         model_feat = [c for c in model_feat if c in df.columns][:20]
         X = df[model_feat].fillna(0)
-        model, threshold, f2, pr_auc, roc_auc = train_risk_model(X, y, model_type="logistic", test_size=0.2)
+        model, threshold, f2, pr_auc, roc_auc, scaler = train_risk_model(X, y, model_type="logistic", test_size=0.2)
     else:
         model_feat = [c for c in X_noleak.columns if c != ID_COL and any(x in c for x in ["_deviation", "_pct_change", "_z", "_slope", "_declining"])]
         model_feat = [c for c in model_feat if c in X_noleak.columns][:20]
         X_train = X_noleak[model_feat].fillna(0)
-        model, threshold, f2, pr_auc, roc_auc = train_risk_model(X_train, y_noleak, model_type="logistic", test_size=0.2)
+        model, threshold, f2, pr_auc, roc_auc, scaler = train_risk_model(X_train, y_noleak, model_type="logistic", test_size=0.2)
         # For scoring full df we need same feature names; full df has them from step 3
         X = df[[c for c in model_feat if c in df.columns]].reindex(columns=model_feat).fillna(0)
 
     # 6) Score 0-100 and category for full df (for display); model was trained on no-leakage set
     X_score = df.reindex(columns=model_feat).fillna(0)
+    if scaler is not None:
+        X_score = pd.DataFrame(scaler.transform(X_score), index=X_score.index, columns=X_score.columns)
     probs = model.predict_proba(X_score)[:, 1]
     df["_risk_prob"] = probs
     df["risk_score"] = df["_risk_prob"].apply(score_0_100)
@@ -103,8 +118,10 @@ def run_pipeline(
 
     top_contrib = get_top_contributors(model, model_feat, model_type="logistic", top_k=5)
 
-    def score_one(row: pd.Series) -> Tuple[float, str, str, str, str]:
+    def score_one(row: pd.Series, _scaler=scaler) -> Tuple[float, str, str, str, str]:
         X_row = row.reindex(model_feat).fillna(0).values.reshape(1, -1)
+        if _scaler is not None:
+            X_row = _scaler.transform(X_row)
         prob = model.predict_proba(X_row)[0, 1]
         score = score_0_100(prob)
         band = risk_band(score)
@@ -117,6 +134,7 @@ def run_pipeline(
 
     return {
         "model": model,
+        "scaler": scaler,
         "baselines": baselines,
         "model_feat": model_feat,
         "threshold": threshold,
