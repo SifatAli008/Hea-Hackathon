@@ -4,6 +4,28 @@ Longitudinal health risk detection from self-reported data. Detects **personal b
 
 **Live app:** [https://hea-hackathon.streamlit.app/](https://hea-hackathon.streamlit.app/)
 
+---
+
+## Problem & Vision
+
+### Problems this solution solves
+
+| Problem | How PHDD addresses it |
+|--------|------------------------|
+| **Late detection** | Flags **early** changes by comparing each person to their **own** baseline over time, not to population norms — so drift is visible before it becomes severe. |
+| **One-size-fits-all** | Uses **personal baselines** and **weak signals** (slope, deviation, trends) so what “normal” means is per person, not averaged across everyone. |
+| **Black-box risk** | Provides a **risk score (0–100)**, **category** (Psycho-emotional / Metabolic / Cardiovascular), and **explanation** of which factors changed and by how much. |
+| **Cold or clinical tone** | Adds an **empathetic follow-up question** (no diagnosis, no treatment) so the output supports conversation rather than alarming the user. |
+| **Life events ignored** | Incorporates a **life-events proxy** (e.g. job loss, retirement, divorce, stress) in signals and follow-up so context like major life changes is reflected. |
+| **Data leakage / unfair comparisons** | Uses a **no-leakage** setup: target from last wave only, features from past waves only; optional **fairness** checks by demographic group without using demographics as inputs. |
+
+### Vision
+
+**Personal, early, explainable, and supportive.**  
+We aim for a world where health risk is understood as **change from your own normal** — not from a population average — and where early signals are surfaced in a way that is **interpretable** and **conversation-friendly**, without diagnosing or prescribing. PHDD is a step toward that: longitudinal self-reported data → personal baseline + weak signals → risk score + category + “why we flagged” + one empathetic question, so people and care teams can **talk about what’s changing** before it becomes a crisis.
+
+---
+
 ## Requirements
 
 - Python 3.9+
@@ -31,16 +53,19 @@ Hea/
 ├── TASKS_AND_SUBTASKS.md
 ├── src/
 │   ├── config.py          # Paths, column names, constants
-│   ├── data_loader.py     # Load longitudinal CSV, handle missing
+│   ├── data_loader.py     # Load longitudinal CSV, NLSY97 wide→long, handle missing
 │   ├── baseline.py        # Per-person baseline builder
-│   ├── weak_signals.py     # Moving average, trend slope, flags
+│   ├── weak_signals.py    # Moving average, trend slope, flags
+│   ├── target_no_leakage.py  # Target last wave, features past only
 │   ├── risk_model.py      # Score 0–100, risk category, F2-optimized
 │   ├── explainability.py  # Feature importance, human-readable summary
 │   ├── follow_up.py       # Empathetic question templates
+│   ├── fairness.py        # Stratified metrics by group (optional)
 │   └── pipeline.py        # End-to-end pipeline
 ├── data/
-│   └── sample_longitudinal.csv   # Small sample (in repo) — demo without NLSY97
-├── HACKATHON_CHECKLIST.md  # Submission checklist vs judging criteria
+│   └── sample_longitudinal.csv   # Sample (in repo) — demo without NLSY97
+├── DATA_NLSY97.md         # NLSY97 data description
+├── HACKATHON_CHECKLIST.md # Submission checklist vs judging criteria
 ├── RULES_GAP.md           # Rules.pdf — what's missing / done
 └── notebooks/             # Optional exploration
 ```
@@ -61,6 +86,8 @@ Use “Synthetic demo (no file)” in the sidebar — runs on small generated da
 **With data:**  
 - Upload a CSV in the app, or  
 - Set “Use path” to your NLSY97 path (e.g. `/s3/.../nlsy97_all_1997-2019.csv`) and use `sample_n` for large files. Or use path `data/sample_longitudinal.csv` (in repo) for a small demo CSV.
+
+**App features:** Filter results by risk band (Low/Moderate/High) and category; **download full results (last wave) as CSV**; **feature importance** (top factors driving the model) in an expander; **choose a person by ID** to see their explanation and follow-up question.
 
 ## Approach
 

@@ -110,7 +110,6 @@ def run_pipeline(
         X = df[[c for c in model_feat if c in df.columns]].reindex(columns=model_feat).fillna(0)
 
     # 5b) Optional fairness: stratified metrics by demographic group (never used as features)
-    fairness_result = None
     if DEMOGRAPHIC_COLS and all(c in df.columns for c in DEMOGRAPHIC_COLS) and not X_noleak.empty:
         demo_per_person = df.groupby(ID_COL)[DEMOGRAPHIC_COLS].first()
         group_col = DEMOGRAPHIC_COLS[0]

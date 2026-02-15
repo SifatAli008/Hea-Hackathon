@@ -5,9 +5,11 @@ Run on Nebius: streamlit run app.py
 import streamlit as st
 import pandas as pd
 from pathlib import Path
+from datetime import datetime
 
 from src.pipeline import run_pipeline
 from src.config import NLSY97_CSV, SAMPLE_CSV, ID_COL
+from src.explainability import get_top_contributors
 
 st.set_page_config(page_title="Personal Health Drift Detector", layout="centered")
 st.title("Personal Health Drift Detector (PHDD)")
@@ -35,7 +37,7 @@ elif data_source == "Use path (NLSY97 or /s3/...)":
     sample_n_path = st.sidebar.number_input(
         "Max rows (persons for NLSY97)" if is_nlsy97 else "Max rows (memory-safe)",
         min_value=300, max_value=max_rows_val, value=min(2000, max_rows_val), step=200 if not is_nlsy97 else 500,
-        help="NLSY97: number of persons (wide→long, 10 waves × 5 vars). Else: rows, first 50 cols."
+        help="NLSY97: number of persons (wide→long, 10 waves × 6 vars). Else: rows, first 50 cols."
     )
     if data_path.exists():
         st.sidebar.success(f"Found: {path_str}")
@@ -81,12 +83,29 @@ if result:
 
     st.subheader("Sample outputs (last wave per person)")
     df = result["df"]
-    last = df.groupby(ID_COL).tail(1)[[ID_COL, "risk_score", "risk_band", "risk_category"]].head(15)
-    st.dataframe(last, use_container_width=True)
+    last_all = df.groupby(ID_COL).tail(1)[[ID_COL, "risk_score", "risk_band", "risk_category"]]
+    # Filter by risk band and category
+    bands = st.multiselect("Filter by risk band", options=["Low", "Moderate", "High"], default=["Low", "Moderate", "High"], key="bands")
+    cats = st.multiselect("Filter by category", options=last_all["risk_category"].dropna().unique().tolist() or ["Psycho-emotional", "Metabolic", "Cardiovascular"], default=last_all["risk_category"].dropna().unique().tolist(), key="cats")
+    last = last_all[(last_all["risk_band"].isin(bands)) & (last_all["risk_category"].isin(cats))].head(50)
+    st.dataframe(last, use_container_width=True, hide_index=True)
+    # Export to CSV
+    csv = last_all.to_csv(index=False)
+    export_name = f"{datetime.now().strftime('%Y-%m-%dT%H-%M')}_export.csv"
+    st.download_button("Download full results (last wave) as CSV", data=csv, file_name=export_name, mime="text/csv")
+
+    # Feature importance (top contributors)
+    with st.expander("Feature importance (top factors driving the model)"):
+        top_contrib = get_top_contributors(result["model"], result["model_feat"], model_type="logistic", top_k=8)
+        imp_df = pd.DataFrame({"Feature": top_contrib.index, "Importance (|coef|)": top_contrib.values.round(4)})
+        st.dataframe(imp_df, use_container_width=True, hide_index=True)
 
     st.subheader("Example: explanation and follow-up question")
     score_one = result["score_one"]
-    sample_row = df.groupby(ID_COL).tail(1).iloc[0]
+    last_wave = df.groupby(ID_COL).tail(1)
+    person_ids = last_wave[ID_COL].astype(str).tolist()
+    selected_id = st.selectbox("Choose a person (by ID) to see their explanation", options=person_ids[:100], index=0, key="person_id")
+    sample_row = last_wave[last_wave[ID_COL].astype(str) == str(selected_id)].iloc[0]
     score, band, cat, expl, follow_up = score_one(sample_row)
     st.write(f"**Risk score:** {score:.0f}/100 ({band}) — **Category:** {cat}")
     st.write("**Why we flagged:**", expl)
