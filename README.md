@@ -96,7 +96,7 @@ Use “Synthetic demo (no file)” in the sidebar — runs on small generated da
 3. **Risk score:** 0–100 from a lightweight model (e.g. Logistic Regression), F2-optimized.
 4. **Risk category:** Psycho-emotional / Metabolic / Cardiovascular from dominant signals.
 5. **Explainability:** Which features changed and by how much.
-6. **Follow-up:** One supportive, non-diagnostic question (templates by signal type).
+6. **Follow-up:** One supportive, non-diagnostic question (templates by signal type). **No ChatGPT or other LLM API** — follow-ups are chosen from local templates in code (`src/follow_up.py`); runs fully offline, no API keys.
 
 ## Architecture (high level)
 

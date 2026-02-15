@@ -155,7 +155,8 @@ def run_pipeline(
         changes = human_readable_changes(row, deviation_cols=dev_cols)
         expl = explanation_text(changes, score, cat)
         main_names = main_change_names(row, deviation_cols=dev_cols)
-        follow_up = pick_follow_up(contrib_names, cat, score, main_change_names=main_names)
+        first_main = main_names[0] if main_names else None
+        follow_up = pick_follow_up(contrib_names, cat, score, main_change_names=main_names, main_change_name=first_main)
         return score, band, cat, expl, follow_up
 
     out = {
