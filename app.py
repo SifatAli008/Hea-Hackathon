@@ -8,7 +8,7 @@ from pathlib import Path
 from datetime import datetime
 
 from src.pipeline import run_pipeline
-from src.config import NLSY97_CSV, SAMPLE_CSV, ID_COL
+from src.config import NLSY97_CSV, SAMPLE_CSV, ID_COL, WAVE_COL
 from src.explainability import get_top_contributors
 
 st.set_page_config(page_title="Personal Health Drift Detector", layout="centered")
@@ -81,16 +81,61 @@ if result:
                 if fa.get("disparity", {}).get("f2_max_min") is not None:
                     st.metric("F2 max − min across groups", f"{fa['disparity']['f2_max_min']:.3f}")
 
-    st.subheader("Sample outputs (last wave per person)")
+    # Charts and prediction-style views
+    st.subheader("Charts & predictions")
     df = result["df"]
-    last_all = df.groupby(ID_COL).tail(1)[[ID_COL, "risk_score", "risk_band", "risk_category"]]
+    last_all = df.groupby(ID_COL).tail(1)
+    tab1, tab2, tab3, tab4 = st.tabs(["Risk distribution", "Risk band & category", "Feature importance", "Risk over time (person)"])
+    with tab1:
+        st.caption("Distribution of risk scores (last wave per person).")
+        bins = [0, 10, 20, 30, 40, 50, 60, 70, 80, 90, 100]
+        dist = last_all["risk_score"].value_counts(bins=bins, sort=False).sort_index()
+        dist_df = pd.DataFrame({"Count": dist.values}, index=[str(i) for i in dist.index])
+        st.bar_chart(dist_df)
+    with tab2:
+        st.caption("Number of persons in each risk band and category.")
+        c1, c2 = st.columns(2)
+        with c1:
+            band_counts = last_all["risk_band"].value_counts()
+            st.bar_chart(pd.DataFrame({"Count": band_counts}).rename_axis("Risk band"))
+        with c2:
+            cat_counts = last_all["risk_category"].value_counts()
+            st.bar_chart(pd.DataFrame({"Count": cat_counts}).rename_axis("Category"))
+    with tab3:
+        st.caption("Top factors driving the model (absolute coefficient).")
+        top_contrib = get_top_contributors(result["model"], result["model_feat"], model_type="logistic", top_k=8)
+        imp_df = pd.DataFrame({"Importance": top_contrib.values}, index=top_contrib.index)
+        st.bar_chart(imp_df)
+    with tab4:
+        st.caption("Risk score across waves for one person (prediction over time).")
+        if WAVE_COL not in df.columns:
+            st.info("No wave column in data — risk over time not available.")
+        else:
+            pid_options = last_all[ID_COL].astype(str).unique().tolist()[:100]
+            if not pid_options:
+                st.info("No persons in data.")
+            else:
+                pid_sel = st.selectbox("Person (ID)", options=pid_options, key="risk_time_id")
+                match = df[df[ID_COL].astype(str) == str(pid_sel)]
+                if match.empty:
+                    st.info("No rows for this person.")
+                else:
+                    pid_val = match[ID_COL].iloc[0]
+                    person_df = df[df[ID_COL] == pid_val][[WAVE_COL, "risk_score"]].sort_values(WAVE_COL).set_index(WAVE_COL)
+                    if person_df.shape[0] < 2:
+                        st.info("Need at least 2 waves for a trend.")
+                    else:
+                        st.line_chart(person_df)
+
+    st.subheader("Sample outputs (last wave per person)")
+    last_table = last_all[[ID_COL, "risk_score", "risk_band", "risk_category"]]
     # Filter by risk band and category
     bands = st.multiselect("Filter by risk band", options=["Low", "Moderate", "High"], default=["Low", "Moderate", "High"], key="bands")
-    cats = st.multiselect("Filter by category", options=last_all["risk_category"].dropna().unique().tolist() or ["Psycho-emotional", "Metabolic", "Cardiovascular"], default=last_all["risk_category"].dropna().unique().tolist(), key="cats")
-    last = last_all[(last_all["risk_band"].isin(bands)) & (last_all["risk_category"].isin(cats))].head(50)
+    cats = st.multiselect("Filter by category", options=last_table["risk_category"].dropna().unique().tolist() or ["Psycho-emotional", "Metabolic", "Cardiovascular"], default=last_table["risk_category"].dropna().unique().tolist(), key="cats")
+    last = last_table[(last_table["risk_band"].isin(bands)) & (last_table["risk_category"].isin(cats))].head(50)
     st.dataframe(last, use_container_width=True, hide_index=True)
     # Export to CSV
-    csv = last_all.to_csv(index=False)
+    csv = last_table.to_csv(index=False)
     export_name = f"{datetime.now().strftime('%Y-%m-%dT%H-%M')}_export.csv"
     st.download_button("Download full results (last wave) as CSV", data=csv, file_name=export_name, mime="text/csv")
 
@@ -102,12 +147,15 @@ if result:
 
     st.subheader("Example: explanation and follow-up question")
     score_one = result["score_one"]
-    last_wave = df.groupby(ID_COL).tail(1)
+    last_wave = last_all
     person_ids = last_wave[ID_COL].astype(str).tolist()
     selected_id = st.selectbox("Choose a person (by ID) to see their explanation", options=person_ids[:100], index=0, key="person_id")
     sample_row = last_wave[last_wave[ID_COL].astype(str) == str(selected_id)].iloc[0]
     score, band, cat, expl, follow_up = score_one(sample_row)
+    # Prediction: score and probability
+    prob = sample_row.get("_risk_prob", score / 100.0)
     st.write(f"**Risk score:** {score:.0f}/100 ({band}) — **Category:** {cat}")
+    st.caption(f"Predicted probability (model output): {prob:.1%}")
     st.write("**Why we flagged:**", expl)
     st.info("**Follow-up question:** " + follow_up)
 

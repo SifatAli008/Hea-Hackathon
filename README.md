@@ -87,7 +87,7 @@ Use “Synthetic demo (no file)” in the sidebar — runs on small generated da
 - Upload a CSV in the app, or  
 - Set “Use path” to your NLSY97 path (e.g. `/s3/.../nlsy97_all_1997-2019.csv`) and use `sample_n` for large files. Or use path `data/sample_longitudinal.csv` (in repo) for a small demo CSV.
 
-**App features:** Filter results by risk band (Low/Moderate/High) and category; **download full results (last wave) as CSV**; **feature importance** (top factors driving the model) in an expander; **choose a person by ID** to see their explanation and follow-up question.
+**App features:** **Charts & predictions:** risk score distribution, risk band & category breakdown, feature importance (bar charts), **risk over time** per person (line chart); filter results by risk band and category; **download full results (last wave) as CSV**; **predicted probability** in the example section; **choose a person by ID** to see their explanation and follow-up question.
 
 ## Approach
 
@@ -160,9 +160,31 @@ We do not use age, gender, or ethnicity as model inputs. When the dataset includ
 
 | Item | Value |
 |------|--------|
-| **Format** | Long: `PUBID`, `wave`, plus health/lifestyle columns (e.g. `health_rating`, `stress_level`, `activity_level`) |
+| **Format** | Long: one row per person–wave |
+| **Rows** | **30,001** (data rows; 1 header row) |
+| **Columns** | **5** |
 | **Purpose** | Demo without NLSY97 file; same structure as pipeline expects after NLSY97 reshape |
-| **Rows** | ~30k (configurable); first 50 cols read for non-NLSY97 paths |
+
+**All features (columns) — Sample CSV:**
+
+| # | Column name | Description |
+|---|-------------|-------------|
+| 1 | `PUBID` | Person ID |
+| 2 | `wave` | Wave index (0, 1, 2, …) |
+| 3 | `health_rating` | Self-reported health |
+| 4 | `stress_level` | Stress level |
+| 5 | `activity_level` | Activity level |
+
+---
+
+### All dataset features, rows, and columns (summary)
+
+| Dataset | Rows (after load) | Columns (after load) | Feature columns |
+|---------|-------------------|----------------------|-----------------|
+| **Sample** (`data/sample_longitudinal.csv`) | 30,001 | 5 | `health_rating`, `stress_level`, `activity_level` |
+| **NLSY97** (`nlsy97_all_1997-2019.csv`) | persons × 10 waves (e.g. 8,984 × 10 = **89,840** if all persons) | **8** (`PUBID`, `wave`, 6 features) | `health_rating`, `stress_level`, `activity_level`, `var_3`, `var_4`, `life_event_proxy` |
+
+**NLSY97 raw file (before reshape):** 8,984 rows (one per person), 61 columns read (1 ID + 10 waves × 6 variables).
 
 ### Data description references
 
