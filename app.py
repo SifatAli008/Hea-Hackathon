@@ -33,7 +33,8 @@ elif data_source == "Use path (NLSY97 or /s3/...)":
     path_str = st.sidebar.text_input("Path to CSV", value=default_path, help="Use data/sample_longitudinal.csv (in repo) or nlsy97_all_1997-2019.csv for real NLSY97.")
     data_path = Path(path_str)
     is_nlsy97 = data_path.exists() and "nlsy97" in path_str.lower()
-    max_rows_val = 8984 if is_nlsy97 else 2000
+    is_sample = data_path.exists() and "sample_longitudinal" in path_str
+    max_rows_val = 8984 if is_nlsy97 else (30001 if is_sample else 2000)
     sample_n_path = st.sidebar.number_input(
         "Max rows (persons for NLSY97)" if is_nlsy97 else "Max rows (memory-safe)",
         min_value=300, max_value=max_rows_val, value=min(2000, max_rows_val), step=200 if not is_nlsy97 else 500,
@@ -131,7 +132,8 @@ if result:
     last_table = last_all[[ID_COL, "risk_score", "risk_band", "risk_category"]]
     # Filter by risk band and category
     bands = st.multiselect("Filter by risk band", options=["Low", "Moderate", "High"], default=["Low", "Moderate", "High"], key="bands")
-    cats = st.multiselect("Filter by category", options=last_table["risk_category"].dropna().unique().tolist() or ["Psycho-emotional", "Metabolic", "Cardiovascular"], default=last_table["risk_category"].dropna().unique().tolist(), key="cats")
+    cat_options = last_table["risk_category"].dropna().unique().tolist() or ["Psycho-emotional", "Metabolic", "Cardiovascular"]
+    cats = st.multiselect("Filter by category", options=cat_options, default=cat_options, key="cats")
     last = last_table[(last_table["risk_band"].isin(bands)) & (last_table["risk_category"].isin(cats))].head(50)
     st.dataframe(last, use_container_width=True, hide_index=True)
     # Export to CSV

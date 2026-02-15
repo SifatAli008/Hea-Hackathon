@@ -106,7 +106,7 @@ def load_longitudinal(
         # 6 features: 5 health/lifestyle + life_event_proxy (Rules: life events)
         df = _load_nlsy97_wide_to_long(path, n_rows=n_to_read, n_waves=10, n_features=6)
     else:
-        n_to_read = min(sample_n or 1500, 2000)
+        n_to_read = min(sample_n or 1500, 50000)  # allow up to 50k rows for sample_longitudinal etc.
         max_cols = max_cols or 50
         df = _load_csv_line_by_line(path, max_cols=max_cols, n_rows=n_to_read)
         if id_col not in df.columns and len(df.columns) > 0:
