@@ -18,23 +18,26 @@
 
 ---
 
-## 🔶 Add to Strengthen (Before Judging)
+## ✅ Already added (strengthened)
 
-### 1. Fairness (judges check this)
-- **Add:** Short "Fairness" note in README: e.g. "We did not use age/gender/ethnicity as model features; bias audit can be run when those variables are available in the dataset."
-- **Optional:** If NLSY97 columns include demographics, add a notebook or app section that stratifies F2/errors by group and documents "no large disparity."
+- **Fairness:** README has Fairness section + "Could the model become biased?"; optional stratified metrics when `DEMOGRAPHIC_COLS` set.
+- **Feature / no-leakage audit:** README states features (baseline deviations, % change, z-scores, trend slopes, declining flags only; no medication/diagnosis).
+- **Architecture diagram:** README has "Architecture (high level)" flow.
+- **One-line summary:** README opens with one-line value prop ("Detect health risk from your own baseline...").
+- **Quick start:** README has "Quick start (30 seconds)" (try app, run locally, use your data).
 
-### 2. Feature / no-leakage audit (judges audit features)
-- **Add:** In README, one sentence: "Features: baseline deviations, % change, z-scores, trend slopes, declining flags only; no medication or diagnosis-related variables."
+## 🔶 Still to do (team action)
 
-### 3. Presentation (5 min)
-- **Prepare:** Problem → Dataset (NLSY97/sample) → Approach (baseline + weak signals + no-leakage target) → Live demo (deploy link) → Impact (recall-focused, explainable, safe follow-up).
+### Presentation (5 min)
+- **Prepare:** Problem → Dataset (NLSY97/sample) → Approach (baseline + weak signals + no-leakage) → Live demo (deploy link) → Impact (recall-focused, explainable, safe follow-up).
+- **Rehearse** so you stay within 5 minutes and the demo works.
 
-### 4. Optional: architecture diagram
-- **Add:** Simple flow in README (e.g. Data → Baseline → Weak signals → Model → Score + Explain + Follow-up) so judges see the pipeline at a glance.
+### Optional
+- **Notebook:** Add a short demo notebook in `notebooks/` (load sample, run pipeline, show metrics).
+- **Tests:** Minimal `tests/test_pipeline.py` that runs `run_pipeline()` on synthetic data and checks result keys.
 
 ---
 
 ## One-line summary
 
-You already meet the core rules and judging criteria. Adding a **fairness note**, **feature audit sentence**, and a **clear 5-min pitch** (plus optional diagram) will make the submission more complete and easier for judges to score.
+You meet the core rules and judging criteria. **Fairness note**, **feature audit**, **one-liner**, and **quick start** are in README. Deliver a **clear 5-min pitch** and you're in strong shape.

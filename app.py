@@ -150,9 +150,21 @@ if result:
     st.subheader("Example: explanation and follow-up question")
     score_one = result["score_one"]
     last_wave = last_all
-    person_ids = last_wave[ID_COL].astype(str).tolist()
-    selected_id = st.selectbox("Choose a person (by ID) to see their explanation", options=person_ids[:100], index=0, key="person_id")
-    sample_row = last_wave[last_wave[ID_COL].astype(str) == str(selected_id)].iloc[0]
+    person_ids = last_wave[ID_COL].astype(str).unique().tolist()
+    person_ids_100 = person_ids[:100]
+    use_id_input = st.checkbox("Jump to person ID (type any ID)", value=False, key="use_id_input")
+    if use_id_input:
+        max_id = last_wave[ID_COL].max()
+        typed_id = st.number_input("Person ID", min_value=int(last_wave[ID_COL].min()), max_value=int(max_id), value=0, step=1, key="typed_person_id")
+        selected_id = str(typed_id)
+    else:
+        selected_id = st.selectbox("Choose a person (by ID) to see their explanation", options=person_ids_100, index=0, key="person_id")
+    match_row = last_wave[last_wave[ID_COL].astype(str) == str(selected_id)]
+    if match_row.empty:
+        st.warning(f"No person with ID {selected_id}. Pick another.")
+        selected_id = person_ids_100[0] if person_ids_100 else person_ids[0]
+        match_row = last_wave[last_wave[ID_COL].astype(str) == str(selected_id)]
+    sample_row = match_row.iloc[0]
     score, band, cat, expl, follow_up = score_one(sample_row)
     # Prediction: score and probability
     prob = sample_row.get("_risk_prob", score / 100.0)

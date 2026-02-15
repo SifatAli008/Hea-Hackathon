@@ -1,8 +1,10 @@
 # Hea — Personal Health Drift Detector (PHDD)
 
-Longitudinal health risk detection from self-reported data. Detects **personal baseline drift** and **weak signals**, outputs a **risk score (0–100)**, **risk category**, **explanation**, and an **empathetic follow-up question**. No diagnosis, no treatment advice.
+**One line:** Detect health risk from **your own baseline** over time — not population averages — with a risk score, category, explanation, and one empathetic follow-up question. No diagnosis, no treatment.
 
 **Live app:** [https://hea-hackathon.streamlit.app/](https://hea-hackathon.streamlit.app/)
+
+Longitudinal health risk detection from self-reported data. Detects **personal baseline drift** and **weak signals**, outputs a **risk score (0–100)**, **risk category**, **explanation**, and an **empathetic follow-up question**. No diagnosis, no treatment advice.
 
 ---
 
@@ -30,6 +32,12 @@ We aim for a world where health risk is understood as **change from your own nor
 
 - Python 3.9+
 - Run on **Nebius** instance (training/testing not on local machine). Data from S3 bucket or local path.
+
+## Quick start (30 seconds)
+
+1. **Try the app:** [https://hea-hackathon.streamlit.app/](https://hea-hackathon.streamlit.app/) — choose "Synthetic demo (no file)" and click **Run pipeline**.
+2. **Run locally:** `git clone https://github.com/SifatAli008/Hea-Hackathon.git && cd Hea-Hackathon && pip install -r requirements.txt && streamlit run app.py`
+3. **Use your data:** In the app, choose "Use path" and set the path to your CSV (e.g. `data/sample_longitudinal.csv`).
 
 ## Setup
 
@@ -195,6 +203,16 @@ We do not use age, gender, or ethnicity as model inputs. When the dataset includ
 | [BLS NLSY97 overview](https://www.bls.gov/nls/nlsy97.htm) | Bureau of Labor Statistics NLSY97 |
 
 **No data leakage:** We do not use features that directly reveal the outcome (e.g. medication for the predicted condition). Target = last wave only; features = past waves only.
+
+## Possible next improvements
+
+| Area | Idea |
+|------|------|
+| **App** | Searchable person ID; more chart types (e.g. scatter risk vs one feature); dark/light theme toggle. |
+| **Model** | Optional Random Forest; hyperparameter tuning (e.g. threshold, F2 beta); calibration plot. |
+| **Data** | Map NLSY97 codebook columns to logical names; add more longitudinal vars when available. |
+| **Dev** | Minimal test suite (`tests/test_pipeline.py`); short demo notebook in `notebooks/`. |
+| **Presentation** | 5-min slide deck (Problem → Data → Approach → Demo → Impact); rehearse with live app. |
 
 ## License & compliance
 
